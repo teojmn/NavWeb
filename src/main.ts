@@ -4,6 +4,8 @@ import { join } from 'path';
 class MinimalBrowser {
   private windows: Set<BrowserWindow> = new Set();
   private static instance: MinimalBrowser;
+  private pendingUrls: string[] = []; // File d'attente pour les URLs reçues avant que l'app soit prête
+  private isAppReady: boolean = false;
 
   constructor() {
     MinimalBrowser.instance = this;
@@ -31,13 +33,19 @@ class MinimalBrowser {
     const url = this.getUrlFromArgs(process.argv);
     
     app.whenReady().then(() => {
+      this.isAppReady = true;
       this.setupMenu();
       this.registerGlobalShortcuts();
+      
+      // Traiter les URLs en attente en premier
+      const hasPendingUrls = this.pendingUrls.length > 0;
+      this.processPendingUrls();
       
       // Si une URL est fournie au démarrage, créer une fenêtre de navigateur directement
       if (url) {
         this.openBrowserWindow(url);
-      } else {
+      } else if (!hasPendingUrls && this.windows.size === 0) {
+        // Ne créer une fenêtre d'accueil que s'il n'y a pas d'URLs en attente et aucune fenêtre
         this.createWindow();
       }
     });
@@ -49,8 +57,12 @@ class MinimalBrowser {
     });
 
     app.on('activate', () => {
+      // Ne créer une nouvelle fenêtre que s'il n'y a vraiment aucune fenêtre
       if (BrowserWindow.getAllWindows().length === 0) {
+        console.log('📱 Activation app - création fenêtre d\'accueil');
         this.createWindow();
+      } else {
+        console.log('📱 Activation app - fenêtres existantes, pas de création');
       }
     });
 
@@ -61,18 +73,38 @@ class MinimalBrowser {
     // Gérer l'ouverture de liens externes sur macOS
     app.on('open-url', (event, url) => {
       event.preventDefault();
+      console.log('🌐 Événement open-url reçu:', url);
+      
+      if (!this.isAppReady) {
+        console.log('⏳ App pas encore prête, mise en file d\'attente de l\'URL:', url);
+        this.pendingUrls.push(url);
+        return;
+      }
+      
       const cleanUrl = this.cleanProtocolUrl(url);
       if (cleanUrl) {
+        console.log('🚀 Ouverture de fenêtre navigateur avec:', cleanUrl);
         this.openBrowserWindow(cleanUrl);
+      } else {
+        console.log('❌ URL invalide après nettoyage');
       }
     });
 
     // Gérer les instances multiples (Windows/Linux)
     app.on('second-instance', (event, commandLine, workingDirectory) => {
+      console.log('🔄 Seconde instance détectée avec commandLine:', commandLine);
+      
+      if (!this.isAppReady) {
+        console.log('⏳ App pas encore prête pour second-instance');
+        return;
+      }
+      
       const url = this.getUrlFromArgs(commandLine);
       if (url) {
+        console.log('🚀 Ouverture de fenêtre navigateur avec:', url);
         this.openBrowserWindow(url);
       } else {
+        console.log('📋 Aucune URL - gestion fenêtre existante');
         // Créer une nouvelle fenêtre ou ramener la fenêtre existante au premier plan
         if (this.windows.size === 0) {
           this.createWindow();
@@ -91,33 +123,66 @@ class MinimalBrowser {
     }
   }
 
+  // Traiter les URLs reçues avant que l'app soit prête
+  private processPendingUrls(): void {
+    console.log('📋 Traitement des URLs en attente:', this.pendingUrls);
+    
+    while (this.pendingUrls.length > 0) {
+      const url = this.pendingUrls.shift();
+      if (url) {
+        const cleanUrl = this.cleanProtocolUrl(url);
+        if (cleanUrl) {
+          console.log('🚀 Ouverture de fenêtre navigateur en différé avec:', cleanUrl);
+          this.openBrowserWindow(cleanUrl);
+        }
+      }
+    }
+  }
+
   // Méthode pour extraire l'URL des arguments de ligne de commande
   private getUrlFromArgs(argv: string[]): string | null {
+    console.log('🔍 Arguments reçus:', argv);
+    
     // Chercher un argument qui ressemble à une URL
     for (const arg of argv) {
+      console.log('🔎 Examen de l\'argument:', arg);
+      
       if (arg.startsWith('navweb://')) {
-        return this.cleanProtocolUrl(arg);
+        const cleanUrl = this.cleanProtocolUrl(arg);
+        console.log('✅ URL navweb:// trouvée et nettoyée:', cleanUrl);
+        return cleanUrl;
       }
       // Aussi accepter les URLs HTTP/HTTPS directes
       if (arg.startsWith('http://') || arg.startsWith('https://')) {
+        console.log('✅ URL HTTP(S) directe trouvée:', arg);
         return arg;
       }
     }
+    
+    console.log('❌ Aucune URL trouvée dans les arguments');
     return null;
   }
 
   // Méthode pour nettoyer l'URL du protocole personnalisé
   private cleanProtocolUrl(url: string): string | null {
+    console.log('🧹 Nettoyage de l\'URL:', url);
+    
     if (url.startsWith('navweb://')) {
       // Extraire l'URL après navweb://
       const cleanUrl = url.replace('navweb://', '');
+      console.log('🔗 URL extraite:', cleanUrl);
       
       // Si l'URL ne commence pas par http/https, ajouter https://
       if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-        return `https://${cleanUrl}`;
+        const finalUrl = `https://${cleanUrl}`;
+        console.log('🔧 URL finale avec https://', finalUrl);
+        return finalUrl;
       }
+      console.log('✅ URL finale:', cleanUrl);
       return cleanUrl;
     }
+    
+    console.log('➡️ URL retournée telle quelle:', url);
     return url;
   }
 
@@ -183,6 +248,14 @@ class MinimalBrowser {
   }
 
   private openBrowserWindow(url: string): BrowserWindow {
+    console.log('🖥️ Création fenêtre navigateur pour URL:', url);
+    
+    // Vérification de sécurité : s'assurer que l'app est prête
+    if (!this.isAppReady) {
+      console.log('❌ Tentative de création de fenêtre avant que l\'app soit prête');
+      throw new Error('Cannot create BrowserWindow before app is ready');
+    }
+    
     const browserWindow = new BrowserWindow({
       width: 1200,
       height: 800,
@@ -210,6 +283,7 @@ class MinimalBrowser {
 
     // Afficher la fenêtre une fois prête
     browserWindow.once('ready-to-show', () => {
+      console.log('✅ Fenêtre navigateur prête à être affichée');
       browserWindow.show();
       browserWindow.focus();
     });
@@ -224,6 +298,7 @@ class MinimalBrowser {
 
     // Envoyer l'URL à charger
     browserWindow.webContents.once('dom-ready', () => {
+      console.log('📤 Envoi navigate-to avec URL:', url);
       browserWindow.webContents.send('navigate-to', url);
     });
 
