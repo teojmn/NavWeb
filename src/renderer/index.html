@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NavWeb</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Barre de titre discrète -->
+    <div id="title-bar" class="title-bar">
+        <div class="title-bar-content"></div>
+    </div>
+
+    <!-- Barre d'adresse cachée par défaut -->
+    <div id="address-bar" class="address-bar hidden">
+        <input 
+            type="text" 
+            id="url-input" 
+            placeholder="Tapez une URL ou recherchez..."
+            autocomplete="off"
+        >
+    </div>
+
+    <!-- WebView pour afficher les pages -->
+    <webview 
+        id="webview" 
+        src="about:blank"
+        allowpopups
+        useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        webpreferences="allowRunningInsecureContent, experimentalFeatures, contextIsolation=false, nodeIntegration=false"
+        partition="persist:main"
+    ></webview>
+
+    <script>
+        // Code complet intégré - Version finale
+        class BrowserRenderer {
+            constructor() {
+                this.isAddressBarVisible = false;
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupElectronListeners();
+            }
+
+            initializeElements() {
+                this.webview = document.getElementById('webview');
+                this.addressBar = document.getElementById('address-bar');
+                this.urlInput = document.getElementById('url-input');
+            }
+
+            setupEventListeners() {
+                // Gestion de la barre d'adresse
+                this.urlInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.navigateToUrl(this.urlInput.value);
+                        this.hideAddressBar();
+                    } else if (e.key === 'Escape') {
+                        this.hideAddressBar();
+                    }
+                });
+
+                // Cacher la barre d'adresse si on clique ailleurs
+                document.addEventListener('click', (e) => {
+                    if (this.isAddressBarVisible && !this.addressBar.contains(e.target)) {
+                        this.hideAddressBar();
+                    }
+                });
+
+                // Gestion du copier-coller dans le webview
+                document.addEventListener('keydown', (e) => {
+                    if (e.metaKey || e.ctrlKey) {
+                        switch (e.key) {
+                            case 'c':
+                                if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('copy')) {
+                                    this.webview.executeEditCommand('copy');
+                                }
+                                break;
+                            case 'v':
+                                if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('paste')) {
+                                    this.webview.executeEditCommand('paste');
+                                }
+                                break;
+                            case 'x':
+                                if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('cut')) {
+                                    this.webview.executeEditCommand('cut');
+                                }
+                                break;
+                            case 'a':
+                                if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('selectAll')) {
+                                    this.webview.executeEditCommand('selectAll');
+                                }
+                                break;
+                            case 'z':
+                                if (e.shiftKey) {
+                                    if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('redo')) {
+                                        this.webview.executeEditCommand('redo');
+                                    }
+                                } else {
+                                    if (this.webview.canExecuteEditCommand && this.webview.canExecuteEditCommand('undo')) {
+                                        this.webview.executeEditCommand('undo');
+                                    }
+                                }
+                                break;
+                        }
+                    }
+                });
+
+                // Événements webview
+                this.webview.addEventListener('did-navigate', (e) => {
+                    this.urlInput.value = e.url;
+                });
+
+                this.webview.addEventListener('did-navigate-in-page', (e) => {
+                    this.urlInput.value = e.url;
+                });
+
+                this.webview.addEventListener('dom-ready', () => {
+                    if (this.webview.src && this.webview.src !== 'about:blank') {
+                        this.urlInput.value = this.webview.src;
+                    }
+                });
+            }
+
+            setupElectronListeners() {
+                if (window.electronAPI) {
+                    window.electronAPI.onNavigateTo((url) => {
+                        this.webview.src = url;
+                    });
+
+                    window.electronAPI.onNavigate((direction) => {
+                        switch (direction) {
+                            case 'back':
+                                if (this.webview.canGoBack()) {
+                                    this.webview.goBack();
+                                }
+                                break;
+                            case 'forward':
+                                if (this.webview.canGoForward()) {
+                                    this.webview.goForward();
+                                }
+                                break;
+                            case 'reload':
+                                this.webview.reload();
+                                break;
+                        }
+                    });
+
+                    window.electronAPI.onShowAddressBar(() => {
+                        this.showAddressBar();
+                    });
+                }
+            }
+
+            showAddressBar() {
+                this.isAddressBarVisible = true;
+                this.addressBar.classList.remove('hidden');
+                this.urlInput.focus();
+                this.urlInput.select();
+            }
+
+            hideAddressBar() {
+                this.isAddressBarVisible = false;
+                this.addressBar.classList.add('hidden');
+                this.webview.focus();
+            }
+
+            navigateToUrl(input) {
+                let url = input.trim();
+                
+                if (!url) return;
+
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    // URL complète
+                    this.webview.src = url;
+                } else if (url.includes('.') && !url.includes(' ')) {
+                    // Domaine
+                    url = `https://${url}`;
+                    this.webview.src = url;
+                } else {
+                    // Recherche Google
+                    url = `https://www.google.com/search?q=${encodeURIComponent(url)}`;
+                    this.webview.src = url;
+                }
+            }
+        }
+
+        // Initialiser quand le DOM est prêt
+        document.addEventListener('DOMContentLoaded', () => {
+            new BrowserRenderer();
+        });
+
+        // Si le DOM est déjà prêt
+        if (document.readyState !== 'loading') {
+            new BrowserRenderer();
+        }
+    </script>
+</body>
+</html>

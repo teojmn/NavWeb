@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NavWeb - Accueil</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .search-container {
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: 200;
+            color: white;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 25px;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            background: white;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .search-input::placeholder {
+            color: #666;
+        }
+
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 15px 25px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.selected {
+            background-color: #f8f9fa;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .suggestion-item:first-child {
+            border-radius: 15px 15px 0 0;
+        }
+
+        .suggestion-icon {
+            margin-right: 12px;
+            opacity: 0.6;
+        }
+
+        .shortcut-hint {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .shortcuts {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .shortcut {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <div class="logo">NavWeb</div>
+        
+        <div class="search-box">
+            <input 
+                type="text" 
+                class="search-input" 
+                placeholder="Rechercher ou saisir une URL..."
+                autocomplete="off"
+                spellcheck="false"
+            >
+            <div class="suggestions"></div>
+        </div>
+
+        <div class="shortcut-hint">
+            Appuyez sur Entrée pour rechercher ou naviguer
+        </div>
+
+        <div class="shortcuts">
+            <div class="shortcut">⌘+L Barre d'URL</div>
+            <div class="shortcut">⌘+T Nouvelle fenêtre</div>
+            <div class="shortcut">⌘+W Fermer</div>
+        </div>
+    </div>
+
+    <script>
+        class HomePage {
+            constructor() {
+                this.searchInput = document.querySelector('.search-input');
+                this.suggestionsContainer = document.querySelector('.suggestions');
+                this.selectedIndex = -1;
+                this.suggestions = [];
+                this.setupEventListeners();
+                this.focusInput();
+            }
+
+            setupEventListeners() {
+                this.searchInput.addEventListener('input', (e) => {
+                    this.handleInput(e.target.value);
+                });
+
+                this.searchInput.addEventListener('keydown', (e) => {
+                    this.handleKeyDown(e);
+                });
+
+                this.searchInput.addEventListener('blur', () => {
+                    setTimeout(() => this.hideSuggestions(), 150);
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.search-box')) {
+                        this.hideSuggestions();
+                    }
+                });
+            }
+
+            focusInput() {
+                setTimeout(() => {
+                    this.searchInput.focus();
+                }, 100);
+            }
+
+            handleInput(value) {
+                if (value.length > 0) {
+                    this.generateSuggestions(value);
+                } else {
+                    this.hideSuggestions();
+                }
+            }
+
+            generateSuggestions(query) {
+                this.suggestions = [];
+                
+                // Suggestions d'URLs populaires
+                const popularSites = [
+                    { url: 'google.com', name: 'Google', icon: '🔍' },
+                    { url: 'youtube.com', name: 'YouTube', icon: '📺' },
+                    { url: 'github.com', name: 'GitHub', icon: '💻' },
+                    { url: 'twitter.com', name: 'Twitter', icon: '🐦' },
+                    { url: 'facebook.com', name: 'Facebook', icon: '📘' },
+                    { url: 'instagram.com', name: 'Instagram', icon: '📷' },
+                    { url: 'linkedin.com', name: 'LinkedIn', icon: '💼' },
+                    { url: 'reddit.com', name: 'Reddit', icon: '🤖' },
+                    { url: 'stackoverflow.com', name: 'Stack Overflow', icon: '❓' },
+                    { url: 'wikipedia.org', name: 'Wikipedia', icon: '📚' }
+                ];
+
+                // Filtrer les sites qui correspondent à la requête
+                const matchingSites = popularSites.filter(site => 
+                    site.name.toLowerCase().includes(query.toLowerCase()) ||
+                    site.url.toLowerCase().includes(query.toLowerCase())
+                );
+
+                // Ajouter les suggestions de sites
+                matchingSites.slice(0, 5).forEach(site => {
+                    this.suggestions.push({
+                        text: site.name,
+                        url: `https://${site.url}`,
+                        icon: site.icon,
+                        type: 'site'
+                    });
+                });
+
+                // Ajouter une suggestion de recherche Google
+                this.suggestions.unshift({
+                    text: `Rechercher "${query}" sur Google`,
+                    url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+                    icon: '🔍',
+                    type: 'search'
+                });
+
+                this.showSuggestions();
+            }
+
+            showSuggestions() {
+                this.suggestionsContainer.innerHTML = '';
+                this.selectedIndex = -1;
+
+                this.suggestions.forEach((suggestion, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'suggestion-item';
+                    item.innerHTML = `
+                        <span class="suggestion-icon">${suggestion.icon}</span>
+                        <span>${suggestion.text}</span>
+                    `;
+                    
+                    item.addEventListener('click', () => {
+                        this.selectSuggestion(suggestion);
+                    });
+
+                    this.suggestionsContainer.appendChild(item);
+                });
+
+                this.suggestionsContainer.style.display = 'block';
+            }
+
+            hideSuggestions() {
+                this.suggestionsContainer.style.display = 'none';
+                this.selectedIndex = -1;
+            }
+
+            handleKeyDown(e) {
+                const items = this.suggestionsContainer.querySelectorAll('.suggestion-item');
+
+                switch (e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this.selectedIndex = Math.min(this.selectedIndex + 1, this.suggestions.length - 1);
+                        this.updateSelection(items);
+                        break;
+
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+                        this.updateSelection(items);
+                        break;
+
+                    case 'Enter':
+                        e.preventDefault();
+                        if (this.selectedIndex >= 0) {
+                            this.selectSuggestion(this.suggestions[this.selectedIndex]);
+                        } else {
+                            this.navigateToUrl(this.searchInput.value);
+                        }
+                        break;
+
+                    case 'Escape':
+                        this.hideSuggestions();
+                        break;
+                }
+            }
+
+            updateSelection(items) {
+                items.forEach((item, index) => {
+                    item.classList.toggle('selected', index === this.selectedIndex);
+                });
+            }
+
+            selectSuggestion(suggestion) {
+                this.navigateToUrl(suggestion.url);
+            }
+
+            async navigateToUrl(input) {
+                let url;
+                
+                // Si c'est déjà une URL complète (avec http/https)
+                if (typeof input === 'string' && (input.startsWith('http://') || input.startsWith('https://'))) {
+                    url = input;
+                } else {
+                    // Sinon, traiter comme avant
+                    let query = input.trim();
+                    
+                    if (!query) return;
+
+                    // Si ça ressemble à une URL
+                    if (query.includes('.') && !query.includes(' ')) {
+                        if (!query.startsWith('http://') && !query.startsWith('https://')) {
+                            url = `https://${query}`;
+                        } else {
+                            url = query;
+                        }
+                    } else {
+                        // Sinon, recherche Google
+                        url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    }
+                }
+                
+                // Utiliser l'API Electron pour naviguer au lieu de window.location.href
+                if (window.electronAPI) {
+                    try {
+                        await window.electronAPI.navigateFromHome(url);
+                    } catch (error) {
+                        console.error('Erreur de navigation:', error);
+                        // Fallback
+                        window.location.href = url;
+                    }
+                } else {
+                    // Fallback si l'API n'est pas disponible
+                    window.location.href = url;
+                }
+            }
+        }
+
+        // Initialiser la page d'accueil
+        new HomePage();
+    </script>
+</body>
+</html>
