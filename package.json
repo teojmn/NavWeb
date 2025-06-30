@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
+    "start:url": "npm run build && electron . --",
     "dev": "tsc --watch & electron . --dev",
     "pack": "electron-builder",
     "dist": "npm run build && electron-builder",
@@ -29,6 +30,12 @@
       "dist/**/*",
       "src/renderer/**/*",
       "node_modules/**/*"
+    ],
+    "protocols": [
+      {
+        "name": "NavWeb Protocol",
+        "schemes": ["navweb"]
+      }
     ],
     "mac": {
       "icon": "assets/icon.icns",

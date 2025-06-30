@@ -18,10 +18,28 @@ class MinimalBrowser {
     // Configurer le dossier de données utilisateur
     app.setPath('userData', join(app.getPath('userData'), 'NavWeb'));
     
+    // Définir l'app comme gestionnaire par défaut pour le protocole navweb://
+    if (process.defaultApp) {
+      if (process.argv.length >= 2) {
+        app.setAsDefaultProtocolClient('navweb', process.execPath, [join(__dirname, '..')]);
+      }
+    } else {
+      app.setAsDefaultProtocolClient('navweb');
+    }
+    
+    // Gérer les URLs passées en argument au démarrage
+    const url = this.getUrlFromArgs(process.argv);
+    
     app.whenReady().then(() => {
       this.setupMenu();
       this.registerGlobalShortcuts();
-      this.createWindow();
+      
+      // Si une URL est fournie au démarrage, créer une fenêtre de navigateur directement
+      if (url) {
+        this.openBrowserWindow(url);
+      } else {
+        this.createWindow();
+      }
     });
 
     app.on('window-all-closed', () => {
@@ -39,6 +57,68 @@ class MinimalBrowser {
     app.on('will-quit', () => {
       globalShortcut.unregisterAll();
     });
+
+    // Gérer l'ouverture de liens externes sur macOS
+    app.on('open-url', (event, url) => {
+      event.preventDefault();
+      const cleanUrl = this.cleanProtocolUrl(url);
+      if (cleanUrl) {
+        this.openBrowserWindow(cleanUrl);
+      }
+    });
+
+    // Gérer les instances multiples (Windows/Linux)
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+      const url = this.getUrlFromArgs(commandLine);
+      if (url) {
+        this.openBrowserWindow(url);
+      } else {
+        // Créer une nouvelle fenêtre ou ramener la fenêtre existante au premier plan
+        if (this.windows.size === 0) {
+          this.createWindow();
+        } else {
+          const firstWindow = Array.from(this.windows)[0];
+          if (firstWindow.isMinimized()) firstWindow.restore();
+          firstWindow.focus();
+        }
+      }
+    });
+
+    // Empêcher les instances multiples (optionnel)
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+      app.quit();
+    }
+  }
+
+  // Méthode pour extraire l'URL des arguments de ligne de commande
+  private getUrlFromArgs(argv: string[]): string | null {
+    // Chercher un argument qui ressemble à une URL
+    for (const arg of argv) {
+      if (arg.startsWith('navweb://')) {
+        return this.cleanProtocolUrl(arg);
+      }
+      // Aussi accepter les URLs HTTP/HTTPS directes
+      if (arg.startsWith('http://') || arg.startsWith('https://')) {
+        return arg;
+      }
+    }
+    return null;
+  }
+
+  // Méthode pour nettoyer l'URL du protocole personnalisé
+  private cleanProtocolUrl(url: string): string | null {
+    if (url.startsWith('navweb://')) {
+      // Extraire l'URL après navweb://
+      const cleanUrl = url.replace('navweb://', '');
+      
+      // Si l'URL ne commence pas par http/https, ajouter https://
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        return `https://${cleanUrl}`;
+      }
+      return cleanUrl;
+    }
+    return url;
   }
 
   private createWindow(url: string = ''): BrowserWindow {
