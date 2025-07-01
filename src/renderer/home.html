@@ -21,6 +21,17 @@
             overflow: hidden;
         }
 
+        /* Zone invisible pour déplacer la fenêtre - seulement en haut */
+        .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            -webkit-app-region: drag;
+            z-index: 100;
+        }
+
         .search-container {
             text-align: center;
             width: 100%;
@@ -131,6 +142,9 @@
     </style>
 </head>
 <body>
+    <!-- Zone invisible pour pouvoir déplacer la fenêtre -->
+    <div class="drag-area"></div>
+    
     <div class="search-container">
         <div class="logo">NavWeb</div>
         

@@ -67,7 +67,9 @@ class MinimalBrowser {
     });
 
     app.on('will-quit', () => {
-      globalShortcut.unregisterAll();
+      if (this.isAppReady) {
+        globalShortcut.unregisterAll();
+      }
     });
 
     // Gérer l'ouverture de liens externes sur macOS
@@ -192,8 +194,8 @@ class MinimalBrowser {
       height: 800,
       minWidth: 400,
       minHeight: 300,
-      titleBarStyle: 'hiddenInset',
-      trafficLightPosition: { x: 15, y: 9 },
+      titleBarStyle: 'hiddenInset', // Barre de titre personnalisée pour la page d'accueil
+      trafficLightPosition: { x: 20, y: 15 }, // Position modifiée des traffic lights
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -261,8 +263,7 @@ class MinimalBrowser {
       height: 800,
       minWidth: 400,
       minHeight: 300,
-      titleBarStyle: 'hiddenInset',
-      trafficLightPosition: { x: 15, y: 12 },
+      titleBarStyle: 'default', // Barre de titre native macOS pour les pages web
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -357,6 +358,13 @@ class MinimalBrowser {
   }
 
   private registerGlobalShortcuts(): void {
+    if (!app.isReady()) {
+      console.log('⚠️ App pas encore prête, report de l\'enregistrement des raccourcis');
+      return;
+    }
+    
+    console.log('⌨️ Enregistrement des raccourcis globaux');
+    
     // CMD+T pour nouvelle fenêtre
     globalShortcut.register('CmdOrCtrl+T', () => {
       this.handleNewWindow();
