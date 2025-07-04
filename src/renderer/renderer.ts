@@ -78,6 +78,130 @@ class BrowserRenderer {
         .site-header, .page-header, #header, #navigation {
           display: none !important;
         }
+        
+        /* Styles pour les contrôles PiP */
+        .pip-button {
+          position: absolute !important;
+          top: 10px !important;
+          right: 10px !important;
+          background: rgba(0, 0, 0, 0.7) !important;
+          color: white !important;
+          border: none !important;
+          padding: 8px 12px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
+          font-size: 12px !important;
+          z-index: 9999 !important;
+          opacity: 0 !important;
+          transition: opacity 0.3s !important;
+        }
+        
+        .pip-button:hover {
+          background: rgba(0, 0, 0, 0.9) !important;
+          opacity: 1 !important;
+        }
+        
+        video:hover + .pip-button,
+        .pip-button:hover {
+          opacity: 1 !important;
+        }
+        
+        .video-container {
+          position: relative !important;
+        }
+        
+        .video-container:hover .pip-button {
+          opacity: 1 !important;
+        }
+      `);
+      
+      // Injecter le script pour détecter et ajouter les boutons PiP aux vidéos
+      this.webview.executeJavaScript(`
+        (function() {
+          let pipButtons = new Set();
+          
+          function createPipButton(video) {
+            const button = document.createElement('button');
+            button.className = 'pip-button';
+            button.textContent = '📺 PiP';
+            button.title = 'Ouvrir en Picture-in-Picture';
+            
+            button.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              const videoSrc = video.src || video.currentSrc;
+              const videoTitle = document.title || 'Vidéo';
+              
+              if (videoSrc) {
+                try {
+                  // Utiliser l'API native PiP si disponible
+                  if (video.requestPictureInPicture && document.pictureInPictureEnabled) {
+                    await video.requestPictureInPicture();
+                  } else {
+                    // Fallback vers notre fenêtre PiP personnalisée
+                    window.electronAPI?.createPipWindow(videoSrc, videoTitle);
+                  }
+                } catch (error) {
+                  console.error('Erreur PiP:', error);
+                  // Fallback vers notre fenêtre PiP personnalisée
+                  window.electronAPI?.createPipWindow(videoSrc, videoTitle);
+                }
+              }
+            });
+            
+            return button;
+          }
+          
+          function addPipButtonToVideo(video) {
+            if (pipButtons.has(video)) return;
+            
+            const button = createPipButton(video);
+            pipButtons.add(video);
+            
+            // Essayer de trouver un conteneur parent approprié
+            let container = video.parentElement;
+            while (container && !container.style.position && container !== document.body) {
+              container = container.parentElement;
+            }
+            
+            if (!container || container === document.body) {
+              container = video.parentElement;
+            }
+            
+            // S'assurer que le conteneur a une position relative
+            if (container) {
+              container.style.position = container.style.position || 'relative';
+              container.classList.add('video-container');
+              container.appendChild(button);
+            }
+          }
+          
+          function scanForVideos() {
+            const videos = document.querySelectorAll('video');
+            videos.forEach(video => {
+              if (video.src || video.currentSrc) {
+                addPipButtonToVideo(video);
+              }
+            });
+          }
+          
+          // Scanner initialement
+          scanForVideos();
+          
+          // Scanner périodiquement pour les nouvelles vidéos
+          setInterval(scanForVideos, 2000);
+          
+          // Observer les changements du DOM
+          const observer = new MutationObserver(() => {
+            scanForVideos();
+          });
+          
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true
+          });
+        })();
       `);
     });
 

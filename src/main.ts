@@ -3,6 +3,7 @@ import { join } from 'path';
 
 class MinimalBrowser {
   private windows: Set<BrowserWindow> = new Set();
+  private pipWindows: Map<string, BrowserWindow> = new Map(); // Gestion des fenêtres PiP
   private static instance: MinimalBrowser;
   private pendingUrls: string[] = []; // File d'attente pour les URLs reçues avant que l'app soit prête
   private isAppReady: boolean = false;
@@ -189,13 +190,17 @@ class MinimalBrowser {
   }
 
   private createWindow(url: string = ''): BrowserWindow {
+    // Utiliser la barre de titre par défaut pour les URLs, hiddenInset seulement pour la page d'accueil
+    const titleBarStyle = url ? 'default' : 'hiddenInset';
+    const trafficLightPosition = url ? undefined : { x: 20, y: 15 };
+    
     const window = new BrowserWindow({
       width: 1200,
       height: 800,
       minWidth: 400,
       minHeight: 300,
-      titleBarStyle: 'hiddenInset', // Barre de titre personnalisée pour la page d'accueil
-      trafficLightPosition: { x: 20, y: 15 }, // Position modifiée des traffic lights
+      titleBarStyle: titleBarStyle,
+      trafficLightPosition: trafficLightPosition,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -225,7 +230,7 @@ class MinimalBrowser {
     });
 
     // Gérer les demandes de navigation depuis la page d'accueil
-    // (Supprimé will-navigate car ça ne fonctionne pas avec window.location.href)
+    // (Supprimé will-navigate car
 
     // Gérer les nouveaux onglets/fenêtres
     window.webContents.setWindowOpenHandler(({ url: newUrl }) => {
@@ -440,13 +445,262 @@ class MinimalBrowser {
     }
   }
 
+  // Méthodes pour gérer le Picture-in-Picture
+  public createPipWindow(videoSrc: string, videoTitle: string = 'Video'): BrowserWindow {
+    const pipWindow = new BrowserWindow({
+      width: 400,
+      height: 300,
+      minWidth: 200,
+      minHeight: 150,
+      alwaysOnTop: true,
+      frame: false,
+      resizable: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: join(__dirname, 'preload.js'),
+        webSecurity: false,
+        allowRunningInsecureContent: true
+      },
+      title: videoTitle,
+      show: false
+    });
+
+    // Créer le contenu HTML pour la fenêtre PiP
+    const pipHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: black;
+          overflow: hidden;
+        }
+        video {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .controls {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(transparent, rgba(0,0,0,0.7));
+          padding: 10px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        .controls:hover {
+          opacity: 1;
+        }
+        body:hover .controls {
+          opacity: 1;
+        }
+        button {
+          background: none;
+          border: none;
+          color: white;
+          cursor: pointer;
+          padding: 5px;
+          border-radius: 3px;
+        }
+        button:hover {
+          background: rgba(255,255,255,0.2);
+        }
+        .time {
+          color: white;
+          font-family: Arial, sans-serif;
+          font-size: 12px;
+        }
+        .progress {
+          flex: 1;
+          height: 4px;
+          background: rgba(255,255,255,0.3);
+          border-radius: 2px;
+          cursor: pointer;
+        }
+        .progress-bar {
+          height: 100%;
+          background: #ff0000;
+          border-radius: 2px;
+          width: 0%;
+          transition: width 0.1s;
+        }
+      </style>
+    </head>
+    <body>
+      <video id="pipVideo" controls autoplay>
+        <source src="${videoSrc}" type="video/mp4">
+        Votre navigateur ne supporte pas la balise vidéo.
+      </video>
+      <div class="controls">
+        <button onclick="togglePlayPause()">⏯️</button>
+        <span class="time">
+          <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+        </span>
+        <div class="progress" onclick="seek(event)">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <button onclick="toggleMute()">🔊</button>
+        <button onclick="closePip()">❌</button>
+      </div>
+      <script>
+        const video = document.getElementById('pipVideo');
+        const progressBar = document.getElementById('progressBar');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationSpan = document.getElementById('duration');
+        
+        function formatTime(seconds) {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+        
+        function togglePlayPause() {
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        }
+        
+        function toggleMute() {
+          video.muted = !video.muted;
+        }
+        
+        function seek(event) {
+          const progress = document.querySelector('.progress');
+          const rect = progress.getBoundingClientRect();
+          const percent = (event.clientX - rect.left) / rect.width;
+          video.currentTime = percent * video.duration;
+        }
+        
+        function closePip() {
+          window.electronAPI.closePip();
+        }
+        
+        video.addEventListener('timeupdate', () => {
+          if (video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressBar.style.width = percent + '%';
+            currentTimeSpan.textContent = formatTime(video.currentTime);
+          }
+        });
+        
+        video.addEventListener('loadedmetadata', () => {
+          durationSpan.textContent = formatTime(video.duration);
+        });
+        
+        // Double-clic pour basculer en plein écran
+        video.addEventListener('dblclick', () => {
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            video.requestFullscreen();
+          }
+        });
+      </script>
+    </body>
+    </html>`;
+
+    // Charger le contenu HTML
+    pipWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(pipHtml)}`);
+
+    pipWindow.once('ready-to-show', () => {
+      pipWindow.show();
+    });
+
+    pipWindow.on('closed', () => {
+      this.pipWindows.delete(videoSrc);
+    });
+
+    // Ajouter à la collection des fenêtres PiP
+    this.pipWindows.set(videoSrc, pipWindow);
+
+    return pipWindow;
+  }
+
+  public closePipWindow(videoSrc: string): void {
+    const pipWindow = this.pipWindows.get(videoSrc);
+    if (pipWindow) {
+      pipWindow.close();
+      this.pipWindows.delete(videoSrc);
+    }
+  }
+
   public convertToBrowserWindow(window: BrowserWindow, url: string): void {
-    // Charger la page du navigateur avec WebView
-    window.loadFile(join(__dirname, '../src/renderer/index.html'));
+    // Changer le style de la barre de titre pour utiliser la barre par défaut de macOS
+    // Note: setTitleBarOverlay et autres méthodes ne permettent pas de changer dynamiquement titleBarStyle
+    // On doit recréer la fenêtre avec les bonnes propriétés
+    const bounds = window.getBounds();
+    const isMaximized = window.isMaximized();
+    const isMinimized = window.isMinimized();
     
-    // Une fois chargée, naviguer vers l'URL
-    window.webContents.once('dom-ready', () => {
-      window.webContents.send('navigate-to', url);
+    // Fermer l'ancienne fenêtre
+    this.windows.delete(window);
+    window.close();
+    
+    // Créer une nouvelle fenêtre avec la barre de titre par défaut
+    const newWindow = new BrowserWindow({
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      minWidth: 400,
+      minHeight: 300,
+      titleBarStyle: 'default', // Barre de titre par défaut pour les pages web
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        webviewTag: true,
+        preload: join(__dirname, 'preload.js'),
+        webSecurity: false,
+        partition: 'persist:main',
+        allowRunningInsecureContent: true
+      },
+      show: false
+    });
+
+    // Supprimer complètement la barre de menu de la fenêtre
+    newWindow.setMenu(null);
+    
+    // Ajouter la nouvelle fenêtre à notre collection
+    this.windows.add(newWindow);
+    
+    // Gérer la fermeture de la fenêtre
+    newWindow.on('closed', () => {
+      this.windows.delete(newWindow);
+    });
+
+    // Gérer les nouveaux onglets/fenêtres
+    newWindow.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+      this.openBrowserWindow(newUrl);
+      return { action: 'deny' };
+    });
+    
+    // Charger la page du navigateur avec WebView
+    newWindow.loadFile(join(__dirname, '../src/renderer/index.html'));
+    
+    // Une fois chargée, naviguer vers l'URL et afficher la fenêtre
+    newWindow.webContents.once('dom-ready', () => {
+      newWindow.webContents.send('navigate-to', url);
+    });
+    
+    // Afficher la nouvelle fenêtre
+    newWindow.once('ready-to-show', () => {
+      newWindow.show();
+      if (isMaximized) {
+        newWindow.maximize();
+      } else if (isMinimized) {
+        newWindow.minimize();
+      }
+      newWindow.focus();
     });
   }
 }
@@ -464,6 +718,34 @@ ipcMain.handle('navigate-from-home', async (event: IpcMainInvokeEvent, url: stri
   const window = BrowserWindow.fromWebContents(event.sender);
   if (window) {
     MinimalBrowser.getInstance().convertToBrowserWindow(window, url);
+  }
+});
+
+// Handlers pour Picture-in-Picture
+ipcMain.handle('create-pip-window', async (event: IpcMainInvokeEvent, videoSrc: string, videoTitle?: string) => {
+  try {
+    const pipWindow = MinimalBrowser.getInstance().createPipWindow(videoSrc, videoTitle);
+    return { success: true, windowId: pipWindow.id };
+  } catch (error: any) {
+    console.error('Erreur lors de la création de la fenêtre PiP:', error);
+    return { success: false, error: error.message || 'Erreur inconnue' };
+  }
+});
+
+ipcMain.handle('close-pip-window', async (event: IpcMainInvokeEvent, videoSrc: string) => {
+  try {
+    MinimalBrowser.getInstance().closePipWindow(videoSrc);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erreur lors de la fermeture de la fenêtre PiP:', error);
+    return { success: false, error: error.message || 'Erreur inconnue' };
+  }
+});
+
+ipcMain.handle('close-pip', async (event: IpcMainInvokeEvent) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window) {
+    window.close();
   }
 });
 

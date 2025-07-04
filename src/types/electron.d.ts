@@ -7,6 +7,10 @@ export interface ElectronAPI {
   removeAllListeners: (channel: string) => void;
   // Nouvelle méthode pour naviguer depuis la page d'accueil
   navigateFromHome: (url: string) => Promise<void>;
+  // Méthodes Picture-in-Picture
+  createPipWindow: (videoSrc: string, videoTitle?: string) => Promise<{success: boolean, windowId?: number, error?: string}>;
+  closePipWindow: (videoSrc: string) => Promise<{success: boolean, error?: string}>;
+  closePip: () => Promise<void>;
 }
 
 declare global {
