@@ -1,114 +1,179 @@
-# NavWeb - Navigateur Web Minimaliste
+<div align="center">
 
-Un navigateur web ultra-minimaliste développé avec Electron pour macOS.
+# 🌐 NavWeb
 
-## Fonctionnalités
+### Navigateur Web Ultra-Minimaliste pour macOS
 
-- Interface utilisateur minimaliste et épurée
-- Navigation web complète avec WebView
-- Gestion multi-fenêtres
-- Raccourcis clavier intuitifs
-- Style macOS natif avec barre de titre masquée
-- **Ouverture de liens depuis l'extérieur** via protocole personnalisé `navweb://`
+*Un navigateur épuré qui va à l'essentiel*
 
-## Raccourcis clavier
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/teojmn/NavWeb/releases)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
+[![Built with Electron](https://img.shields.io/badge/built%20with-Electron-9feaf9.svg)](https://www.electronjs.org/)
 
-- `Cmd+T` : Nouvelle fenêtre
-- `Cmd+W` : Fermer la fenêtre
-- `Cmd+L` : Focus sur la barre d'adresse
-- `Cmd+R` : Recharger la page
-- `Cmd+←` : Page précédente
-- `Cmd+→` : Page suivante
+---
 
-## Installation
+</div>
 
-1. Cloner le repository
+## ✨ Fonctionnalités
+
+- 🎨 **Interface minimaliste** : Design épuré qui se concentre sur l'essentiel
+- 🖥️ **Navigation complète** : WebView intégré pour une expérience web native
+- 🪟 **Multi-fenêtres** : Gestion intelligente de plusieurs fenêtres
+- ⌨️ **Raccourcis intuitifs** : Navigation rapide au clavier
+- 🍎 **Style macOS natif** : Intégration parfaite avec l'écosystème Apple
+- 🔗 **Protocole personnalisé** : Ouverture depuis d'autres applications via `navweb://`
+- ⚡ **Performances optimisées** : Léger et rapide
+
+## ⌨️ Raccourcis clavier
+
+| Raccourci | Action |
+|-----------|--------|
+| `⌘ + T` | Ouvrir une nouvelle fenêtre |
+| `⌘ + W` | Fermer la fenêtre courante |
+| `⌘ + L` | Focus sur la barre d'adresse |
+| `⌘ + R` | Recharger la page |
+| `⌘ + ←` | Page précédente |
+| `⌘ + →` | Page suivante |
+
+## 🚀 Installation rapide
+
+### Prérequis
+
+- macOS 10.14 ou plus récent
+- Node.js 16.0 ou plus récent
+- npm ou yarn
+
+### Installation depuis les sources
+
+1. **Cloner le repository**
+   ```bash
+   git clone https://github.com/teojmn/NavWeb.git
+   cd NavWeb
+   ```
+
+2. **Installer les dépendances**
+   ```bash
+   npm install
+   ```
+
+3. **Lancer en mode développement**
+   ```bash
+   npm start
+   ```
+
+### Installation du binaire
+
+Téléchargez la dernière version depuis les [releases GitHub](https://github.com/teojmn/NavWeb/releases) :
+
+- `NavWeb-1.0.1-arm64.dmg` (Apple Silicon)
+- `NavWeb-1.0.1.dmg` (Intel)
+
+## 🔧 Développement
+
+### Scripts disponibles
+
 ```bash
-git clone https://github.com/teojmn/NavWeb.git
-cd NavWeb
-```
+# Développement avec rechargement automatique
+npm run dev
 
-2. Installer les dépendances
-```bash
-npm install
-```
+# Build du projet
+npm run build
 
-3. Lancer en mode développement
-```bash
-npm start
-```
-
-## Build
-
-Pour créer une version de production :
-```bash
+# Création d'un package de distribution
 npm run dist
+
+# Nettoyage des fichiers de build
+npm run clean
 ```
 
-## Ouverture de liens externes
+## 🔗 Ouverture de liens externes
 
-NavWeb peut être utilisé pour ouvrir des liens depuis d'autres applications :
+NavWeb peut être utilisé comme navigateur par défaut pour certains liens ou depuis d'autres applications.
 
-### Protocole personnalisé
+### 🛠️ Protocole personnalisé `navweb://`
 
-Une fois l'application installée, vous pouvez ouvrir des URLs avec le protocole `navweb://` :
+Une fois l'application installée et configurée, vous pouvez ouvrir des URLs directement :
 
 ```bash
 # Ouvrir Instagram
 open "navweb://instagram.com"
 
-# Ouvrir une URL complète
+# Ouvrir une URL complète avec protocole
 open "navweb://https://www.google.com"
+
+# Ouvrir un site local
+open "navweb://localhost:3000"
 ```
 
-### Avec Raycast
+## 🛠️ Technologies utilisées
 
-Pour créer un quicklink dans Raycast :
-1. Ouvrir Raycast
-2. Créer un nouveau "Quicklink"
-3. Utiliser l'URL : `navweb://instagram.com` (ou le site de votre choix)
-4. L'assigner à un raccourci clavier
+| Technologie | Usage | Version |
+|-------------|-------|---------|
+| **Electron** | Framework pour applications desktop | ^28.0.0 |
+| **TypeScript** | Langage de programmation typé | ^5.0.0 |
+| **HTML/CSS** | Interface utilisateur | - |
+| **WebView** | Moteur de rendu web intégré | - |
+| **Electron Builder** | Packaging et distribution | ^24.0.0 |
 
-**Voir le fichier [RAYCAST_SETUP.md](RAYCAST_SETUP.md) pour des exemples de configuration détaillés.**
-
-### Avec Alfred
-
-Si vous utilisez Alfred, consultez le fichier [ALFRED_SETUP.md](ALFRED_SETUP.md) pour configurer un workflow personnalisé.
-
-### Script de test
-
-Un script `open-url.sh` est fourni pour tester la fonctionnalité :
-
-```bash
-# Tester avec Instagram
-./open-url.sh instagram.com
-
-# Tester avec Google
-./open-url.sh google.com
-```
-
-## Technologies utilisées
-
-- **Electron** : Framework pour applications desktop
-- **TypeScript** : Langage de programmation
-- **HTML/CSS** : Interface utilisateur
-- **WebView** : Moteur de rendu web
-
-## Structure du projet
+## 📁 Structure du projet
 
 ```
-src/
-├── main.ts              # Processus principal Electron
-├── preload.ts           # Script de preload
-├── renderer/
-│   ├── home.html        # Page d'accueil
-│   ├── index.html       # Interface du navigateur
-│   ├── renderer.ts      # Logique du renderer
-│   └── styles.css       # Styles CSS
-└── types/
-    └── electron.d.ts    # Types TypeScript
+NavWeb/
+├── 📁 src/                     # Code source principal
+│   ├── main.ts                 # Processus principal Electron
+│   ├── preload.ts              # Script de preload sécurisé
+│   ├── 📁 renderer/            # Interface utilisateur
+│   │   ├── home.html           # Page d'accueil
+│   │   ├── index.html          # Interface du navigateur
+│   │   ├── renderer.ts         # Logique côté renderer
+│   │   └── styles.css          # Styles CSS
+│   └── 📁 types/               # Définitions TypeScript
+│       └── electron.d.ts       # Types Electron personnalisés
+├── 📁 assets/                  # Ressources statiques
+│   └── icon.icns              # Icône de l'application
+├── 📁 release/                 # Builds de production
+├── package.json               # Configuration npm
+├── tsconfig.json              # Configuration TypeScript
+└── README.md                  # Ce fichier
 ```
 
-## Licence
+## 🤝 Contribution
 
-MIT
+Les contributions sont les bienvenues ! Voici comment participer :
+
+1. **Fork** le projet
+2. Créer une branche pour votre fonctionnalité (`git checkout -b feature/AmazingFeature`)
+3. **Commit** vos changements (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une **Pull Request**
+
+### 📋 Guidelines
+
+- Respecter le style de code existant
+- Ajouter des tests si nécessaire
+- Mettre à jour la documentation
+- Utiliser des commits descriptifs
+
+## 🐛 Signaler un bug
+
+Trouvé un problème ? [Créez une issue](https://github.com/teojmn/NavWeb/issues/new) avec :
+
+- Description détaillée du problème
+- Étapes pour reproduire le bug
+- Version de macOS utilisée
+- Version de NavWeb
+
+## 📄 Licence
+
+Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+---
+
+<div align="center">
+
+**Fait avec ❤️ par [Teo](https://github.com/teojmn)**
+
+⭐ **N'hésitez pas à mettre une étoile si ce projet vous plaît !**
+
+</div>
