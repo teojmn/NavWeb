@@ -177,8 +177,27 @@
                 this.suggestionsContainer = document.querySelector('.suggestions');
                 this.selectedIndex = -1;
                 this.suggestions = [];
+                this.popularSites = [];
+                this.loadPopularSites();
                 this.setupEventListeners();
                 this.focusInput();
+            }
+
+            async loadPopularSites() {
+                try {
+                    const response = await fetch('./popular-sites.json');
+                    this.popularSites = await response.json();
+                } catch (error) {
+                    console.warn('Impossible de charger les sites populaires:', error);
+                    // Fallback avec quelques sites essentiels
+                    this.popularSites = [
+                        { url: 'google.com', name: 'Google', icon: '🔍' },
+                        { url: 'youtube.com', name: 'YouTube', icon: '📺' },
+                        { url: 'github.com', name: 'GitHub', icon: '💻' },
+                        { url: 'instagram.com', name: 'Instagram', icon: '📷' },
+                        { url: 'twitter.com', name: 'Twitter', icon: '🐦' }
+                    ];
+                }
             }
 
             setupEventListeners() {
@@ -218,22 +237,8 @@
             generateSuggestions(query) {
                 this.suggestions = [];
                 
-                // Suggestions d'URLs populaires
-                const popularSites = [
-                    { url: 'google.com', name: 'Google', icon: '🔍' },
-                    { url: 'youtube.com', name: 'YouTube', icon: '📺' },
-                    { url: 'github.com', name: 'GitHub', icon: '💻' },
-                    { url: 'twitter.com', name: 'Twitter', icon: '🐦' },
-                    { url: 'facebook.com', name: 'Facebook', icon: '📘' },
-                    { url: 'instagram.com', name: 'Instagram', icon: '📷' },
-                    { url: 'linkedin.com', name: 'LinkedIn', icon: '💼' },
-                    { url: 'reddit.com', name: 'Reddit', icon: '🤖' },
-                    { url: 'stackoverflow.com', name: 'Stack Overflow', icon: '❓' },
-                    { url: 'wikipedia.org', name: 'Wikipedia', icon: '📚' }
-                ];
-
                 // Filtrer les sites qui correspondent à la requête
-                const matchingSites = popularSites.filter(site => 
+                const matchingSites = this.popularSites.filter(site => 
                     site.name.toLowerCase().includes(query.toLowerCase()) ||
                     site.url.toLowerCase().includes(query.toLowerCase())
                 );
