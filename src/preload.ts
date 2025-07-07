@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Nouvelle méthode pour naviguer depuis la page d'accueil
   navigateFromHome: (url: string) => ipcRenderer.invoke('navigate-from-home', url),
   
+  // Méthode pour récupérer le fond d'écran macOS
+  getMacOSWallpaper: () => ipcRenderer.invoke('get-macos-wallpaper'),
+  refreshMacOSWallpaper: () => ipcRenderer.invoke('refresh-macos-wallpaper'),
+  
   // Méthodes Picture-in-Picture
   createPipWindow: (videoSrc: string, videoTitle?: string) => 
     ipcRenderer.invoke('create-pip-window', videoSrc, videoTitle),

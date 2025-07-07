@@ -1,5 +1,9 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, IpcMainInvokeEvent, MenuItemConstructorOptions } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, IpcMainInvokeEvent, MenuItemConstructorOptions, nativeImage } from 'electron';
 import { join } from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 class MinimalBrowser {
   private windows: Set<BrowserWindow> = new Set();
@@ -7,6 +11,9 @@ class MinimalBrowser {
   private static instance: MinimalBrowser;
   private pendingUrls: string[] = []; // File d'attente pour les URLs reçues avant que l'app soit prête
   private isAppReady: boolean = false;
+  private wallpaperCache: { data: string | null; timestamp: number; path: string | null } = { data: null, timestamp: 0, path: null };
+  private readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes en millisecondes
+  private isPreloadingWallpaper = false;
 
   constructor() {
     MinimalBrowser.instance = this;
@@ -37,6 +44,9 @@ class MinimalBrowser {
       this.isAppReady = true;
       this.setupMenu();
       this.registerGlobalShortcuts();
+      
+      // Précharger le fond d'écran macOS en arrière-plan
+      this.preloadMacOSWallpaper();
       
       // Traiter les URLs en attente en premier
       const hasPendingUrls = this.pendingUrls.length > 0;
@@ -703,6 +713,88 @@ class MinimalBrowser {
       newWindow.focus();
     });
   }
+
+  // Méthode pour récupérer le fond d'écran macOS avec cache optimisé
+  public async getMacOSWallpaper(): Promise<string | null> {
+    try {
+      if (process.platform !== 'darwin') {
+        return null;
+      }
+
+      // Récupérer le chemin du fond d'écran actuel
+      const { stdout } = await execAsync(`osascript -e "tell application \\"System Events\\" to picture of current desktop"`);
+      const currentWallpaperPath = stdout.trim();
+
+      if (!currentWallpaperPath || currentWallpaperPath === '') {
+        return null;
+      }
+
+      // Vérifier le cache - considérer valide si même chemin et pas expiré
+      const now = Date.now();
+      if (this.wallpaperCache.data && 
+          this.wallpaperCache.path === currentWallpaperPath &&
+          (now - this.wallpaperCache.timestamp) < this.CACHE_DURATION) {
+        console.log('📸 Utilisation du cache pour le fond d\'écran');
+        return this.wallpaperCache.data;
+      }
+
+      console.log('🔄 Récupération du fond d\'écran macOS...');
+      
+      // Convertir le chemin en base64 pour l'utiliser dans le CSS
+      const image = nativeImage.createFromPath(currentWallpaperPath);
+      if (!image.isEmpty()) {
+        // Redimensionner l'image pour optimiser les performances avec qualité réduite
+        const resizedImage = image.resize({ width: 1600, height: 900, quality: 'good' });
+        const wallpaperData = `data:image/jpeg;base64,${resizedImage.toJPEG(60).toString('base64')}`;
+        
+        // Mettre en cache avec le chemin
+        this.wallpaperCache = {
+          data: wallpaperData,
+          timestamp: now,
+          path: currentWallpaperPath
+        };
+        
+        console.log('✅ Fond d\'écran récupéré et mis en cache');
+        return wallpaperData;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du fond d\'écran:', error);
+      return this.wallpaperCache.data; // Retourner le cache en cas d'erreur
+    }
+  }
+
+  // Méthode pour précharger le fond d'écran macOS au démarrage
+  private async preloadMacOSWallpaper(): Promise<void> {
+    if (this.isPreloadingWallpaper || process.platform !== 'darwin') {
+      return;
+    }
+
+    this.isPreloadingWallpaper = true;
+    
+    try {
+      console.log('🚀 Préchargement du fond d\'écran macOS au démarrage...');
+      await this.getMacOSWallpaper();
+      console.log('✅ Fond d\'écran macOS préchargé');
+    } catch (error) {
+      console.warn('⚠️ Erreur lors du préchargement du fond d\'écran:', error);
+    } finally {
+      this.isPreloadingWallpaper = false;
+    }
+  }
+
+  // Méthode pour vérifier et mettre à jour le cache du fond d'écran
+  public invalidateWallpaperCache(): void {
+    this.wallpaperCache = { data: null, timestamp: 0, path: null };
+    console.log('🔄 Cache du fond d\'écran invalidé');
+  }
+
+  // Méthode pour forcer le rechargement du fond d'écran
+  public async refreshWallpaper(): Promise<string | null> {
+    this.invalidateWallpaperCache();
+    return await this.getMacOSWallpaper();
+  }
 }
 
 // IPC handlers
@@ -746,6 +838,45 @@ ipcMain.handle('close-pip', async (event: IpcMainInvokeEvent) => {
   const window = BrowserWindow.fromWebContents(event.sender);
   if (window) {
     window.close();
+  }
+});
+
+// Handler pour récupérer le fond d'écran macOS
+ipcMain.handle('get-macos-wallpaper', async () => {
+  try {
+    const startTime = Date.now();
+    const wallpaper = await MinimalBrowser.getInstance().getMacOSWallpaper();
+    const loadTime = Date.now() - startTime;
+    
+    if (wallpaper) {
+      console.log(`✅ Fond d'écran récupéré en ${loadTime}ms`);
+      return { success: true, wallpaper, loadTime };
+    } else {
+      console.warn('⚠️ Aucun fond d\'écran disponible');
+      return { success: false, error: 'Aucun fond d\'écran disponible' };
+    }
+  } catch (error: any) {
+    console.error('❌ Erreur lors de la récupération du fond d\'écran:', error);
+    return { success: false, error: error.message || 'Erreur inconnue' };
+  }
+});
+
+// Handler pour forcer le rechargement du fond d'écran
+ipcMain.handle('refresh-macos-wallpaper', async () => {
+  try {
+    const startTime = Date.now();
+    const wallpaper = await MinimalBrowser.getInstance().refreshWallpaper();
+    const loadTime = Date.now() - startTime;
+    
+    if (wallpaper) {
+      console.log(`✅ Fond d'écran actualisé en ${loadTime}ms`);
+      return { success: true, wallpaper, loadTime };
+    } else {
+      return { success: false, error: 'Impossible d\'actualiser le fond d\'écran' };
+    }
+  } catch (error: any) {
+    console.error('❌ Erreur lors de l\'actualisation du fond d\'écran:', error);
+    return { success: false, error: error.message || 'Erreur inconnue' };
   }
 });
 

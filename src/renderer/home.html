@@ -74,7 +74,9 @@
             font-size: 18px;
             border: none;
             border-radius: 1000px;
-            background: url('../../assets/Search Bar.png') center/cover no-repeat;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
             outline: none;
             transition: all 0.3s ease;
@@ -82,16 +84,11 @@
         }
 
         .search-input:focus {
-            width: 100%;
-            padding: 20px 25px;
-            font-size: 18px;
-            border: none;
-            border-radius: 1000px;
-            background: url('../../assets/Search Bar.png') center/cover no-repeat;
-            color: white;
-            outline: none;
-            transition: all 0.3s ease;
-            position: relative;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0px 4px 16px 4px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
         }
 
         .search-input::placeholder {
@@ -176,7 +173,9 @@
         }
 
         .shortcut {
-            background: url('../../assets/Button 1.png') center/cover no-repeat;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 16px 24px;
             border-radius: 8px;
             color: white;
@@ -184,14 +183,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .shortcut:hover {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 16px 4px rgba(0, 0, 0, 0.1);
         }
 
         .shortcut:nth-child(2) {
-            background: url('../../assets/Button 2.png') center/cover no-repeat;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .shortcut:nth-child(3) {
-            background: url('../../assets/Button 3.png') center/cover no-repeat;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -235,6 +247,60 @@
                 this.loadPopularSites();
                 this.setupEventListeners();
                 this.focusInput();
+                
+                // Charger le fond d'écran macOS de manière non-bloquante
+                setTimeout(() => {
+                    this.loadMacOSWallpaper();
+                }, 100); // Petit délai pour laisser l'interface se charger d'abord
+            }
+
+            async loadMacOSWallpaper(forceRefresh = false) {
+                try {
+                    if (window.electronAPI && window.electronAPI.getMacOSWallpaper) {
+                        const startTime = Date.now();
+                        
+                        // Charger en arrière-plan sans bloquer l'interface
+                        const response = forceRefresh && window.electronAPI.refreshMacOSWallpaper ? 
+                            await window.electronAPI.refreshMacOSWallpaper() :
+                            await window.electronAPI.getMacOSWallpaper();
+                            
+                        if (response.success && response.wallpaper) {
+                            // Précharger l'image pour un affichage plus fluide
+                            const img = new Image();
+                            img.onload = () => {
+                                const totalTime = Date.now() - startTime;
+                                
+                                // Appliquer le fond d'écran macOS au body de la homepage avec une transition
+                                document.body.style.transition = 'background-image 0.3s ease';
+                                document.body.style.backgroundImage = `url(${response.wallpaper})`;
+                                document.body.style.backgroundSize = 'cover';
+                                document.body.style.backgroundPosition = 'center';
+                                document.body.style.backgroundRepeat = 'no-repeat';
+                                
+                                // Mettre à jour aussi le pseudo-élément ::before avec transition
+                                const styleElement = document.createElement('style');
+                                styleElement.textContent = `
+                                    body::before {
+                                        background-image: url(${response.wallpaper}) !important;
+                                        transition: background-image 0.3s ease;
+                                    }
+                                `;
+                                document.head.appendChild(styleElement);
+                                
+                                console.log(`✅ Fond d'écran macOS appliqué avec transition (${totalTime}ms total, ${response.loadTime || 0}ms cache)`);
+                            };
+                            img.onerror = () => {
+                                console.warn('⚠️ Erreur lors du chargement de l\'image du fond d\'écran');
+                            };
+                            img.src = response.wallpaper;
+                        } else {
+                            console.warn('⚠️ Aucun fond d\'écran macOS disponible:', response.error);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Impossible de charger le fond d\'écran macOS:', error);
+                    // L'interface reste fonctionnelle avec le fond par défaut
+                }
             }
 
             async loadPopularSites() {
