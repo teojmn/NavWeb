@@ -9,7 +9,8 @@
     "start:url": "npm run build && electron . --",
     "dev": "tsc --watch & electron . --dev",
     "pack": "electron-builder",
-    "dist": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder && npm run post-build",
+    "post-build": "scripts/post-build.sh",
     "clean": "rm -rf dist"
   },
   "author": "Teo",
@@ -49,7 +50,14 @@
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "gatekeeperAssess": false,
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "identity": null,
+      "signIgnore": [
+        "node_modules"
+      ],
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "NavWeb utilise AppleEvents pour récupérer le fond d'écran macOS."
+      }
     },
     "dmg": {
       "title": "NavWeb ${version}",

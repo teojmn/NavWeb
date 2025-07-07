@@ -1,33 +1,62 @@
 #!/bin/bash
 
-echo "🚀 Installation NavWeb - Version corrigée"
-echo "=========================================="
+# Script d'installation NavWeb - Résout automatiquement les problèmes de sécurité macOS
+# Usage: curl -s https://raw.githubusercontent.com/teojmn/NavWeb/main/install-navweb.sh | bash
 
-# Déterminer l'architecture du processeur
+set -e
+
+echo "🚀 Installation de NavWeb v1.0.2..."
+echo "===================================="
+
+# Détecter l'architecture
 ARCH=$(uname -m)
 if [[ "$ARCH" == "arm64" ]]; then
-    DMG_FILE="release/NavWeb-1.0.1-arm64.dmg"
-    ARCH_NAME="Apple Silicon (M1/M2/M3)"
+    DMG_NAME="NavWeb-1.0.2-arm64.dmg"
+    echo "📱 Détection: Apple Silicon (M1/M2/M3)"
+elif [[ "$ARCH" == "x86_64" ]]; then
+    DMG_NAME="NavWeb-1.0.2-x64.dmg"
+    echo "💻 Détection: Intel x64"
 else
-    DMG_FILE="release/NavWeb-1.0.1.dmg"
-    ARCH_NAME="Intel (x64)"
-fi
-
-echo "🔍 Architecture détectée: $ARCH_NAME"
-echo "📦 Fichier DMG: $DMG_FILE"
-
-# Vérifier que le DMG existe
-if [ ! -f "$DMG_FILE" ]; then
-    echo "❌ Erreur: DMG non trouvé ($DMG_FILE)"
-    echo "   Assurez-vous d'avoir exécuté: npm run dist"
+    echo "❌ Architecture non supportée: $ARCH"
     exit 1
 fi
 
-echo "✅ DMG trouvé ($(du -h "$DMG_FILE" | cut -f1))"
+# Télécharger le DMG
+echo "⬇️  Téléchargement de $DMG_NAME..."
+DOWNLOAD_URL="https://github.com/teojmn/NavWeb/releases/download/v1.0.2/$DMG_NAME"
+curl -L -o "/tmp/$DMG_NAME" "$DOWNLOAD_URL"
 
-# Fermer NavWeb s'il est ouvert
-echo "🔄 Fermeture de NavWeb si ouvert..."
-pkill -f "NavWeb" 2>/dev/null || true
+# Supprimer les attributs de quarantaine du DMG
+echo "🔧 Suppression des attributs de quarantaine..."
+xattr -d com.apple.quarantine "/tmp/$DMG_NAME" 2>/dev/null || true
+
+# Monter le DMG
+echo "💽 Montage du DMG..."
+hdiutil attach "/tmp/$DMG_NAME" -quiet
+
+# Copier l'application
+echo "📦 Installation dans Applications..."
+cp -R "/Volumes/NavWeb 1.0.2/NavWeb.app" "/Applications/"
+
+# Supprimer les attributs de quarantaine de l'application
+echo "🔐 Configuration de la sécurité..."
+xattr -rd com.apple.quarantine "/Applications/NavWeb.app" 2>/dev/null || true
+
+# Signature ad-hoc pour éviter les problèmes
+if command -v codesign &> /dev/null; then
+    echo "🔑 Signature de l'application..."
+    codesign --force --deep --sign - "/Applications/NavWeb.app" 2>/dev/null || true
+fi
+
+# Démonter et nettoyer
+echo "🧹 Nettoyage..."
+hdiutil detach "/Volumes/NavWeb 1.0.2" -quiet
+rm "/tmp/$DMG_NAME"
+
+echo "✅ NavWeb installé avec succès!"
+echo "🎉 Vous pouvez maintenant lancer NavWeb depuis le dossier Applications"
+echo ""
+echo "💡 Pour lancer depuis le Terminal: open -a NavWeb"
 sleep 2
 
 # Supprimer l'ancienne version si elle existe
