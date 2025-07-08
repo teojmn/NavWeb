@@ -9,9 +9,10 @@
     "start:url": "npm run build && electron . --",
     "dev": "tsc --watch & electron . --dev",
     "pack": "electron-builder",
-    "dist": "npm run build && electron-builder && npm run post-build",
+    "dist": "npm run build && electron-builder && npm run post-build && npm run create-pkg",
     "post-build": "scripts/post-build.sh",
-    "clean": "rm -rf dist"
+    "create-pkg": "scripts/create-pkg.sh",
+    "clean": "rm -rf dist release/mac* release/pkg-build"
   },
   "author": "Teo",
   "license": "MIT",
